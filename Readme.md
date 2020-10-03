@@ -5,7 +5,7 @@ The entire Project will be coordinated via Discord , and in case you feel any di
 We hope 10 Days of Code will be a fun and great learning experience for you! 
 
 ### May the source be with you!
-### Team GNU/Linux User's Group
+### Team GNU/Linux User's Group!!
 ### NIT Durgapur
 
 ![](https://komarev.com/ghpvc/?username=lugnitdgp&color=brightgreen&label=PROJECT+VIEWS)
