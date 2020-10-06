@@ -1,9 +1,13 @@
 package application;
 import java.io.*;
 import java.awt.*;
+import javax.swing.*;
 import java.util.*;
 import java.awt.event.*;
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.text.*;
+import javax.swing.undo.*;
+import javax.swing.event.*;
 import javax.swing.plaf.metal.MetalLookAndFeel;
 import javax.swing.plaf.metal.OceanTheme;
 
@@ -11,9 +15,10 @@ public class SimpleTextEditor implements ActionListener
 {
 	JFrame frame;JTextPane txtarea;JScrollPane scroll;
 	JMenuBar menu;JMenu file,edit,exit,view;
-	JMenuItem newfile,openfile,savefile,saveas,copy,cut,paste,view_panel,hide_panel,close,printfile;
+	JMenuItem newfile,openfile,savefile,undo,redo,saveas,copy,cut,paste,view_panel,hide_panel,close,printfile;
 	JPanel panel;JButton bold,italics,underline;JOptionPane dopen,dquit;
 	String filename=null;
+	UndoManager undomanager=new UndoManager();
 	SimpleTextEditor()
 	{
 		frame= new JFrame("TEXT EDITOR");
@@ -49,7 +54,7 @@ public class SimpleTextEditor implements ActionListener
 	file=new JMenu("File");edit=new JMenu("Edit");view=new JMenu("Bottom Panel");
 	menu.add(file);menu.add(new JMenu("|")).setEnabled(false);
 	menu.add(edit);menu.add(new JMenu("|")).setEnabled(false);
-	
+	undomanager=new UndoManager();
 	newfile=new JMenuItem("New");openfile=new JMenuItem("Open");savefile=new JMenuItem("Save");
 	saveas=new JMenuItem("SaveAs");printfile=new JMenuItem("Print");
 	view_panel=new JMenuItem("View");hide_panel=new JMenuItem("Hide");
@@ -62,13 +67,60 @@ public class SimpleTextEditor implements ActionListener
 	view_panel.addActionListener(this);hide_panel.addActionListener(this);
 	close.addActionListener(this);
 	
+	undo=new JMenuItem("Undo");redo=new JMenuItem("Redo");
+	undo.addActionListener((new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			try {
+				undomanager.undo();
+			} catch (Exception ex) {
+			}
+		}
+	}));
+	redo.addActionListener(new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			try {
+				undomanager.redo();
+			} catch (Exception ex) {
+			}
+		}
+	});
+	txtarea.getDocument().addUndoableEditListener(new UndoableEditListener() {
+		public void undoableEditHappened(UndoableEditEvent e) {
+			undomanager.addEdit(e.getEdit());
+		}
+	});
+	   txtarea.getActionMap().put("Undo",new AbstractAction("Undo") {
+	           public void actionPerformed(ActionEvent e) {
+	               try {
+	                   if (undomanager.canUndo()) {
+	                       undomanager.undo();
+	                   }
+	               } catch (CannotUndoException ex) {
+	               }
+	           }
+	      });
+	 
+	   txtarea.getInputMap().put(KeyStroke.getKeyStroke("control Z"), "Undo");
+	   txtarea.getActionMap().put("Redo",new AbstractAction("Redo") {
+	           public void actionPerformed(ActionEvent e) {
+	               try {
+	                   if (undomanager.canRedo()) {
+	                       undomanager.redo();
+	                   }
+	               } catch (CannotRedoException ex) {
+	               }
+	           }
+	       });
+	   txtarea.getInputMap().put(KeyStroke.getKeyStroke("control Y"), "Redo");
+	
 	
 	menu.add(close);
 	file.add(newfile);file.addSeparator();file.add(openfile);
 	file.addSeparator();file.add(printfile);file.addSeparator();file.add(savefile);
 	file.addSeparator();view.add(view_panel);view.addSeparator();view.add(hide_panel);
 	file.add(view);file.addSeparator();file.add(saveas);edit.add(cut);edit.addSeparator();
-	edit.add(copy);edit.addSeparator();edit.add(paste);
+	edit.add(copy);edit.addSeparator();edit.add(paste);edit.addSeparator();edit.add(undo);
+	edit.addSeparator();edit.add(redo);
 	
 	panel=new JPanel();
 	panel.setBackground(Color.PINK);
@@ -77,12 +129,17 @@ public class SimpleTextEditor implements ActionListener
 	
 	bold=new JButton("Bold");italics=new JButton("Italics");underline=new JButton("Underline");
 	bold.setBackground(new java.awt.Color(100,140,255));
+	bold.addActionListener(this);
 	italics.setBackground(new java.awt.Color(100,140,255));
+	underline.setBackground(new java.awt.Color(100,140,255));
 	bold.setFont(new Font("Serif", Font.BOLD, 15));
 	italics.setFont(new Font("Serif", Font.ITALIC, 15));
 	underline.setFont(new Font("Serif", Font.PLAIN, 15));
-    
-	underline.setBackground(new java.awt.Color(100,140,255));
+ 
+	bold.addActionListener(new StyledEditorKit.BoldAction());
+	italics.addActionListener(new StyledEditorKit.ItalicAction());
+	underline.addActionListener(new StyledEditorKit.UnderlineAction());
+	
 	panel.add(bold);panel.add(italics);panel.add(underline);
 	}
 	
@@ -99,6 +156,7 @@ public class SimpleTextEditor implements ActionListener
 	        else if (s.equals("Paste")) { 
 	            txtarea.paste(); 
 	        } 
+	        		
 	        else if (s.equals("New")) {
 	        	 Object stringArray[] = { "Sure", "No. I'd like to change/save" };
 	        	 int response=JOptionPane.showOptionDialog(frame, "You're about to delete this text. Continue?", "Select an Option",
@@ -126,10 +184,8 @@ public class SimpleTextEditor implements ActionListener
             }
 	        
 	        else if (s.equals("Open")) 
-	        { 
-	            // Create an object of JFileChooser class 
-	            JFileChooser j = new JFileChooser("f:"); 
-	            // Invoke the showsOpenDialog function to show the save dialog 
+	        {  
+	            JFileChooser j = new JFileChooser("/home/aishwarya"); 
 	            int r = j.showOpenDialog(null); 
 	            // If the user selects a file 
 	            if (r == JFileChooser.APPROVE_OPTION) { 
@@ -137,17 +193,12 @@ public class SimpleTextEditor implements ActionListener
 	                filename=j.getSelectedFile().getAbsolutePath();
 	                File fi = new File(filename); 
 	                try { 
-	                    // String 
 	                    String s1 = "", sl = ""; 
-	                    // Buffered reader 
 	                    BufferedReader br = new BufferedReader(new FileReader(fi)); 
-	                    // Initilize sl 
 	                    sl = br.readLine(); 
-	                    // Take the input from the file 
 	                    while ((s1 = br.readLine()) != null) { 
 	                        sl = sl + "\n" + s1; 
 	                    } 
-	                    // Set the text 
 	                    txtarea.setText(sl); 
 	                } 
 	                catch (Exception evt) { 
